@@ -43,7 +43,6 @@ REQUEST_PATH=$(mktemp)
 PYTEST_RESULT=0
 BLACK_RESULT=0
 TESTED_REVISIONS=()
-AUTHOR_EMAIL="levan-bujiashvili-1-btu-edu-ge"
 
 
 function github_api_get_request()
@@ -133,7 +132,7 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "COMMIT_HASH $COMMIT_HASH"
 echo "REV_LIST $REV_LIST"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-#AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
+AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
 echo "AUTHOR EMAIL $AUTHOR_EMAIL"
 if pytest --verbose --html=$PYTEST_REPORT_PATH --self-contained-html
 then
@@ -268,3 +267,4 @@ fi
 done
 sleep 15
 done
+rm -rf $REPOSITORY_PATH_CODE
