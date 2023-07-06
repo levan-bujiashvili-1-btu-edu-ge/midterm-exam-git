@@ -1,3 +1,5 @@
+ CI script
+ 
  This script takes 2 github repositories with their branches specified after link.
  first link has to be python code repository, which gets cloned and tested by pytest and black.
  second link has to be a repository which will be a storage for pytest and black test results, followed by branch name to where we upload
