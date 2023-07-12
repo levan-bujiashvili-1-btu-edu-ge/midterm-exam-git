@@ -92,7 +92,7 @@ then
     if [[ -z $CHECK ]]
     then 
         echo "branch doesnt exist"
-        read -p "BRANCH to test!:" REPOSITORY_BRANCH_CODE
+        read -p "BRANCH to test!:" REPOSITORY_BRANCH_REPORT
     else 
         echo "2nd BRANCH VALIDATED"
     fi
