@@ -1,7 +1,7 @@
 #!/bin/bash
 
-set -o errexit
-set -o nounset
+#set -o errexit
+#set -o nounset
 set -o pipefail
 
 if [[ "${BASH_TRACE:-0}" == "1" ]]; then
@@ -10,29 +10,109 @@ fi
 
 cd "$(dirname "$0")"
 
+GITHUB_PERSONAL_ACCESS_TOKEN="$(echo $GITHUB_PERSONAL_ACCESS_TOKEN)"
 CODE_REPO_URL=$1
-echo "code url: $CODE_REPO_URL"
 REPOSITORY_BRANCH_CODE=$2
-echo "branch name: $REPOSITORY_BRANCH_CODE"
 REPORT_REPO_URL=$3
-echo "report URL: $REPORT_REPO_URL"
 REPOSITORY_BRANCH_REPORT=$4
-echo "report branch name: $REPOSITORY_BRANCH_REPORT"
+if [[ -z $GITHUB_PERSONAL_ACCESS_TOKEN ]]
+
+then read -p "provide your github personal access token!:" GITHUB_PERSONAL_ACCESS_TOKEN
+fi
+
+if [[ -z $1 ]]
+then read -p "provide your code repo to test it!:" CODE_REPO_URL
+fi
+
+if [[ -z $2 ]]
+then read -p "provide your code branch to test it!:" REPOSITORY_BRANCH_CODE
+fi
+
+if [[ -z $3 ]]
+then read -p "provide your report repo to upload results!:" REPORT_REPO_URL
+fi
+
+if [[ -z $4 ]]
+then read -p "provide your report repo branch to upload results!:" REPOSITORY_BRANCH_REPORT
+fi
+
+
+
 export CODE_REPO_URL
 export REPORT_REPO_URL
 
 REPOSITORY_OWNER="$(python user_name.py)"
+REPOSITORY_NAME_CODE="$(python get_code_name.py)"
+REPOSITORY_NAME_REPORT="$(python get_report_code_name.py)"
+
+
+if [[ ! -z $1 ]]
+then 
+    CHECK="$(curl https://api.github.com/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME_CODE})"
+    RESULT="$(echo $CHECK | jq ".id")"
+    if [ "$RESULT" == "null" ];
+    then 
+        echo "REPO NOT VALID, PLEASE PROVIDE IT AGAIN"
+        read -p "provide repo of code that needs testing" CODE_REPO_URL
+    else 
+        echo "1ST REPO VALIDATED"
+    fi
+fi
+
+if [[ ! -z $2 ]]
+then
+    CHECK="$(git ls-remote --heads https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME_CODE} $2)"
+    #echo $CHECK
+    if [[ -z $CHECK ]]
+    then 
+        echo "branch doesnt exist"
+        read -p "BRANCH to test!:" REPOSITORY_BRANCH_CODE
+    else 
+        echo "1st BRANCH VALIDATED"
+    fi
+fi
+
+if [[ ! -z $3 ]]
+then 
+    CHECK="$(curl https://api.github.com/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME_REPORT})"
+    RESULT="$(echo $CHECK | jq ".id")"
+    if [ "$RESULT" == "null" ];
+    then 
+        echo "REPO NOT VALID, PLEASE PROVIDE IT AGAIN"
+        read -p "provide repo for report upload" REPORT_REPO_URL
+    else 
+        echo "2nd REPO VALIDATED"
+    fi
+fi
+
+if [[ ! -z $4 ]]
+then 
+    CHECK="$(git ls-remote --heads https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME_REPORT} $4)"
+    #echo $CHECK
+    if [[ -z $CHECK ]]
+    then 
+        echo "branch doesnt exist"
+        read -p "BRANCH to test!:" REPOSITORY_BRANCH_CODE
+    else 
+        echo "2nd BRANCH VALIDATED"
+    fi
+fi
+
+
+echo $GITHUB_PERSONAL_ACCESS_TOKEN
+echo "code url: $CODE_REPO_URL"
+echo "branch name: $REPOSITORY_BRANCH_CODE"
+echo "report URL: $REPORT_REPO_URL"
+echo "report branch name: $REPOSITORY_BRANCH_REPORT"
 echo "repo owner: $REPOSITORY_OWNER"
 
-GITHUB_PERSONAL_ACCESS_TOKEN="$(python get_personal_access_key.py)"
+# GITHUB_PERSONAL_ACCESS_TOKEN="$(python get_personal_access_key.py)"
 
 echo "personal access token: $GITHUB_PERSONAL_ACCESS_TOKEN"
 
-REPOSITORY_NAME_CODE="$(python get_code_name.py)"
 echo "REPOSITORY_NAME: $REPOSITORY_NAME_CODE"
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-REPOSITORY_NAME_REPORT="$(python get_report_code_name.py)"
 
 REPOSITORY_PATH_CODE=$(mktemp --directory)
 REPOSITORY_PATH_REPORT=$(mktemp --directory)
