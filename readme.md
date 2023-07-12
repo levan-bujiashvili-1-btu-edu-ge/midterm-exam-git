@@ -8,7 +8,8 @@
  ### script launching example
  
  sh midterm.sh https://github.com/levan-bujiashvili-1-btu-edu-ge/gitMidterm1test master https://github.com/levan-bujiashvili-1-btu-edu-ge/midtermReport main
-
+ 
+ sh midterm.sh git@github.com:levan-bujiashvili-1-btu-edu-ge/gitMidterm1test.git  master git@github.com:levan-bujiashvili-1-btu-edu-ge/midtermReport.git main
 ### for code to function
 
  create file in main directory called ".env" without quotation marks and add your personal access key into it. (see .env example)

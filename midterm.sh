@@ -17,6 +17,9 @@ REPORT_REPO_URL=$3
 REPOSITORY_BRANCH_REPORT=$4
 if [[ -z $GITHUB_PERSONAL_ACCESS_TOKEN ]]
 
+export CODE_REPO_URL
+export REPORT_REPO_URL
+
 then read -p "provide your github personal access token!:" GITHUB_PERSONAL_ACCESS_TOKEN
 fi
 
@@ -41,14 +44,15 @@ fi
 export CODE_REPO_URL
 export REPORT_REPO_URL
 
-REPOSITORY_OWNER="$(python user_name.py)"
+REPOSITORY_OWNER_CODE="$(python user_name.py)"
 REPOSITORY_NAME_CODE="$(python get_code_name.py)"
 REPOSITORY_NAME_REPORT="$(python get_report_code_name.py)"
+REPOSITORY_OWNER_REPORT="$(python report_user_name.py)"
 
 
 if [[ ! -z $1 ]]
 then 
-    CHECK="$(curl https://api.github.com/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME_CODE})"
+    CHECK="$(curl https://api.github.com/repos/${REPOSITORY_OWNER_CODE}/${REPOSITORY_NAME_CODE})"
     RESULT="$(echo $CHECK | jq ".id")"
     if [ "$RESULT" == "null" ];
     then 
@@ -61,7 +65,7 @@ fi
 
 if [[ ! -z $2 ]]
 then
-    CHECK="$(git ls-remote --heads https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME_CODE} $2)"
+    CHECK="$(git ls-remote --heads https://github.com/${REPOSITORY_OWNER_CODE}/${REPOSITORY_NAME_CODE} $2)"
     #echo $CHECK
     if [[ -z $CHECK ]]
     then 
@@ -74,7 +78,7 @@ fi
 
 if [[ ! -z $3 ]]
 then 
-    CHECK="$(curl https://api.github.com/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME_REPORT})"
+    CHECK="$(curl https://api.github.com/repos/${REPOSITORY_OWNER_REPORT}/${REPOSITORY_NAME_REPORT})"
     RESULT="$(echo $CHECK | jq ".id")"
     if [ "$RESULT" == "null" ];
     then 
@@ -87,12 +91,12 @@ fi
 
 if [[ ! -z $4 ]]
 then 
-    CHECK="$(git ls-remote --heads https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME_REPORT} $4)"
+    CHECK="$(git ls-remote --heads https://github.com/${REPOSITORY_OWNER_REPORT}/${REPOSITORY_NAME_REPORT} $4)"
     #echo $CHECK
     if [[ -z $CHECK ]]
     then 
         echo "branch doesnt exist"
-        read -p "BRANCH to test!:" REPOSITORY_BRANCH_REPORT
+        read -p "BRANCH for results!:" REPOSITORY_BRANCH_REPORT
     else 
         echo "2nd BRANCH VALIDATED"
     fi
@@ -104,7 +108,7 @@ echo "code url: $CODE_REPO_URL"
 echo "branch name: $REPOSITORY_BRANCH_CODE"
 echo "report URL: $REPORT_REPO_URL"
 echo "report branch name: $REPOSITORY_BRANCH_REPORT"
-echo "repo owner: $REPOSITORY_OWNER"
+echo "repo owner code: $REPOSITORY_OWNER_CODE"
 
 # GITHUB_PERSONAL_ACCESS_TOKEN="$(python get_personal_access_key.py)"
 
@@ -209,11 +213,11 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
 
-echo "COMMIT_HASH $COMMIT_HASH"
-echo "REV_LIST $REV_LIST"
+#echo "COMMIT_HASH $COMMIT_HASH"
+#echo "REV_LIST $REV_LIST"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
-echo "AUTHOR EMAIL $AUTHOR_EMAIL"
+#echo "AUTHOR EMAIL $AUTHOR_EMAIL"
 if pytest --verbose --html=$PYTEST_REPORT_PATH --self-contained-html
 then
     PYTEST_RESULT=$?
@@ -241,7 +245,7 @@ echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
 popd
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 pwd
-git clone git@github.com:${REPOSITORY_OWNER}/${REPOSITORY_NAME_REPORT}.git $REPOSITORY_PATH_REPORT
+git clone git@github.com:${REPOSITORY_OWNER_REPORT}/${REPOSITORY_NAME_REPORT}.git $REPOSITORY_PATH_REPORT
 
 pushd $REPOSITORY_PATH_REPORT
 
@@ -270,14 +274,14 @@ then
     github_api_get_request "https://api.github.com/search/users?q=$AUTHOR_EMAIL" $RESPONSE_PATH
 
     TOTAL_USER_COUNT=$(cat $RESPONSE_PATH | jq ".total_count")
-    echo "USER COUNT: $TOTAL_USER_COUNT"
-    echo "TOTAL_USER_COUNT $TOTAL_USER_COUNT"
+    #echo "USER COUNT: $TOTAL_USER_COUNT"
+    #echo "TOTAL_USER_COUNT $TOTAL_USER_COUNT"
 
     if [[ $TOTAL_USER_COUNT == 1 ]]
     then
         USER_JSON=$(cat $RESPONSE_PATH | jq ".items[0]")
         AUTHOR_USERNAME=$(cat $RESPONSE_PATH | jq --raw-output ".items[0].login")
-        echo "AUTHOR USERNAME $AUTHOR_USERNAME"
+        #echo "AUTHOR USERNAME $AUTHOR_USERNAME"
     fi
 
     REQUEST_PATH=$(mktemp)
@@ -290,11 +294,11 @@ then
     if (( $PYTEST_RESULT != 0 ))
     then
     BODY+="Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
-    echo "Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
+    #echo "Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
     BODY+="Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
-    echo "Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
+    #echo "Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
 
-    echo "BODY $BODY"
+    #echo "BODY $BODY"
     if [[ ! -z $AUTHOR_USERNAME ]]
     then
         jq_update $REQUEST_PATH --arg username "$AUTHOR_USERNAME"  '.assignees = [$username]'
@@ -326,12 +330,12 @@ then
     jq_update $REQUEST_PATH --arg title "$TITLE" '.title = $title'
     jq_update $REQUEST_PATH --arg body  "$BODY"  '.body = $body'
     
-    echo "REQUEST_PATH $REQUEST_PATH"
+    #echo "REQUEST_PATH $REQUEST_PATH"
 
     # https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#create-an-issue
-    github_post_request "https://api.github.com/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME_CODE}/issues" $REQUEST_PATH $RESPONSE_PATH
-    cat $REQUEST_PATH
-    cat $RESPONSE_PATH
+    github_post_request "https://api.github.com/repos/${REPOSITORY_OWNER_CODE}/${REPOSITORY_NAME_CODE}/issues" $REQUEST_PATH $RESPONSE_PATH
+    #cat $REQUEST_PATH
+    #cat $RESPONSE_PATH
     cat $RESPONSE_PATH | jq ".html_url"
     
     rm $RESPONSE_PATH
@@ -340,7 +344,7 @@ else
     git tag $i "$REPOSITORY_NAME_CODE-ci-success"
 fi
 
-echo "nothing"
+#echo "nothing"
 
 pushd $REPOSITORY_PATH_CODE
 fi
