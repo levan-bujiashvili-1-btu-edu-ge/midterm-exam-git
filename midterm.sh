@@ -15,6 +15,7 @@ CODE_REPO_URL=$1
 REPOSITORY_BRANCH_CODE=$2
 REPORT_REPO_URL=$3
 REPOSITORY_BRANCH_REPORT=$4
+
 export CODE_REPO_URL
 export REPORT_REPO_URL
 
@@ -292,10 +293,10 @@ then
     "
     if (( $PYTEST_RESULT != 0 ))
     then
-    BODY+="Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
-    echo "Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
-    BODY+="Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
-    echo "Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
+    BODY+="Pytest report: https://${REPOSITORY_NAME_REPORT}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
+    echo "Pytest report: https://${REPOSITORY_NAME_REPORT}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
+    BODY+="Black report: https://${REPOSITORY_NAME_REPORT}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
+    echo "Black report: https://${REPOSITORY_NAME_REPORT}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
 
     echo "BODY $BODY"
     if [[ ! -z $AUTHOR_USERNAME ]]
