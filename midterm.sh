@@ -15,11 +15,10 @@ CODE_REPO_URL=$1
 REPOSITORY_BRANCH_CODE=$2
 REPORT_REPO_URL=$3
 REPOSITORY_BRANCH_REPORT=$4
-if [[ -z $GITHUB_PERSONAL_ACCESS_TOKEN ]]
-
 export CODE_REPO_URL
 export REPORT_REPO_URL
 
+if [[ -z $GITHUB_PERSONAL_ACCESS_TOKEN ]]
 then read -p "provide your github personal access token!:" GITHUB_PERSONAL_ACCESS_TOKEN
 fi
 
@@ -213,11 +212,11 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
 
-#echo "COMMIT_HASH $COMMIT_HASH"
-#echo "REV_LIST $REV_LIST"
+echo "COMMIT_HASH $COMMIT_HASH"
+echo "REV_LIST $REV_LIST"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
-#echo "AUTHOR EMAIL $AUTHOR_EMAIL"
+echo "AUTHOR EMAIL $AUTHOR_EMAIL"
 if pytest --verbose --html=$PYTEST_REPORT_PATH --self-contained-html
 then
     PYTEST_RESULT=$?
@@ -274,14 +273,14 @@ then
     github_api_get_request "https://api.github.com/search/users?q=$AUTHOR_EMAIL" $RESPONSE_PATH
 
     TOTAL_USER_COUNT=$(cat $RESPONSE_PATH | jq ".total_count")
-    #echo "USER COUNT: $TOTAL_USER_COUNT"
-    #echo "TOTAL_USER_COUNT $TOTAL_USER_COUNT"
+    echo "USER COUNT: $TOTAL_USER_COUNT"
+    echo "TOTAL_USER_COUNT $TOTAL_USER_COUNT"
 
     if [[ $TOTAL_USER_COUNT == 1 ]]
     then
         USER_JSON=$(cat $RESPONSE_PATH | jq ".items[0]")
         AUTHOR_USERNAME=$(cat $RESPONSE_PATH | jq --raw-output ".items[0].login")
-        #echo "AUTHOR USERNAME $AUTHOR_USERNAME"
+        echo "AUTHOR USERNAME $AUTHOR_USERNAME"
     fi
 
     REQUEST_PATH=$(mktemp)
@@ -294,11 +293,11 @@ then
     if (( $PYTEST_RESULT != 0 ))
     then
     BODY+="Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
-    #echo "Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
+    echo "Pytest report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/pytest.html "
     BODY+="Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
-    #echo "Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
+    echo "Black report: https://${REPOSITORY_OWNER}.github.io/${REPOSITORY_NAME_REPORT}/$REPORT_PATH/black.html "
 
-    #echo "BODY $BODY"
+    echo "BODY $BODY"
     if [[ ! -z $AUTHOR_USERNAME ]]
     then
         jq_update $REQUEST_PATH --arg username "$AUTHOR_USERNAME"  '.assignees = [$username]'
@@ -330,12 +329,12 @@ then
     jq_update $REQUEST_PATH --arg title "$TITLE" '.title = $title'
     jq_update $REQUEST_PATH --arg body  "$BODY"  '.body = $body'
     
-    #echo "REQUEST_PATH $REQUEST_PATH"
+    echo "REQUEST_PATH $REQUEST_PATH"
 
     # https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#create-an-issue
     github_post_request "https://api.github.com/repos/${REPOSITORY_OWNER_CODE}/${REPOSITORY_NAME_CODE}/issues" $REQUEST_PATH $RESPONSE_PATH
-    #cat $REQUEST_PATH
-    #cat $RESPONSE_PATH
+    cat $REQUEST_PATH
+    cat $RESPONSE_PATH
     cat $RESPONSE_PATH | jq ".html_url"
     
     rm $RESPONSE_PATH
