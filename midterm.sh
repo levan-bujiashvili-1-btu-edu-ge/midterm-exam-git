@@ -445,6 +445,11 @@ else
     git fetch --tags
     NAME_FOR_TAG=$(echo "$REPOSITORY_BRANCH_DEV")
     git tag --force "$NAME_FOR_TAG-ci-success" $i
+    git checkout $REPOSITORY_BRANCH_RELEASE
+    git fetch
+    git cherry-pick $i
+    git remote show
+    git push
     popd
 fi
 
