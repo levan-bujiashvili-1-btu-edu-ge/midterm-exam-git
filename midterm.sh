@@ -149,8 +149,12 @@ BLACK_REPORT_PATH=$(mktemp)
 REQUEST_PATH=$(mktemp)
 BLACK_RESULT_FILE=$(mktemp)
 PYTEST_RESULT_FILE=$(mktemp)
+CHERRY_PICK_OUTPUT=$(mktemp)
 PYTEST_RESULT=0
 BLACK_RESULT=0
+CHERRY_PICK=0
+BISECT_GOOD=0
+BISECT_BAD=0
 TESTED_REVISIONS=()
 
 
@@ -267,9 +271,6 @@ function pytest_run()
 echo "CLONING CODE REPO"
 git clone $CODE_REPO_URL $REPOSITORY_PATH_CODE
 pushd $REPOSITORY_PATH_CODE
-echo "REPOSITORY_PATH_CODE"
-echo "$REPOSITORY_PATH_CODE"
-echo "REPOSITORY_PATH_CODE"
 git switch $REPOSITORY_BRANCH_DEV
 COMMIT_HASH=0
 REV_LIST=$(git rev-list --reverse HEAD)
@@ -294,53 +295,41 @@ echo "HERE"
 
 while true
 do
+
 for i in ${REV_LIST[@]}; do
-TESTED_REVISIONS+=("$i")
-#echo "${TESTED_REVISIONS[@]}"
-# for i in ${TESTED_REVISIONS[@]}; do
-# echo "$i" >> CHECKED_REVS
-# done
-#echo "CHECKED REVS CAT"
-#CHECKED_REVS_CAT=$(cat CHECKED_REVS)
-#echo "$CHECKED_REVS_CAT"
-#echo "CHECKED REVS CAT"
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "$i"
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "${TESTED_REVISIONS[@]}" > $CHECKED_REVS
+# echo "CHECKED REVS CAT"
+CHECKED_REVS_CAT=$(cat $CHECKED_REVS)
+# echo "$CHECKED_REVS_CAT"
+# echo "CHECKED REVS CAT"
+# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+# echo "$i"
+# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 git switch --detach $i
 COMMIT_HASH=$i
-echo "COMMIT_HASH"
-echo "$COMMIT_HASH"
+# echo "COMMIT_HASH"
+# echo "$COMMIT_HASH"
 
-if [[ !" ${TESTED_REVISIONS[*]} " =~ " $COMMIT_HASH " ]]; then
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-#echo "~~~~~~~~~~~~~~~~TESTED REVISIONS~~~~~~~~~~~~"
-# if ! grep -q "$i" "$CHECKED_REVS" ; then
+#if [[ !" ${TESTED_REVISIONS[*]} " =~ " $COMMIT_HASH " ]]; then
+# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+# echo "~~~~~~~~~~~~~~~~TESTED REVISIONS~~~~~~~~~~~~"
+if ! grep -q "$COMMIT_HASH" $CHECKED_REVS ; then
 # for l in ${CHECKED_REVS_CAT[@]};do
 #     echo "$l"
 # done
 
 #echo "~~~~~~~~~~TESTED REVISIONS ~~~~~~~~~~~~~~~"
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-echo "COMMIT_HASH $COMMIT_HASH"
+# echo "COMMIT_HASH $COMMIT_HASH"
 # echo "REV_LIST $REV_LIST"
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
-echo "AUTHOR EMAIL $AUTHOR_EMAIL"
-    # if pytest --verbose --html=$PYTEST_REPORT_PATH --self-contained-html
-    # then
-    #     PYTEST_RESULT=$?
-    #     echo "PYTEST SUCCEEDED $PYTEST_RESULT"
-    # else
-    #     PYTEST_RESULT=$?
-    #     echo "PYTEST FAILED $PYTEST_RESULT"
-    # fi
-    #
-    echo "MY PWD"
-    pwd
-    echo "MY PWD"
+    # echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
+    # echo "AUTHOR EMAIL $AUTHOR_EMAIL"
+    # echo "MY PWD"
+    # pwd
+    # echo "MY PWD"
     black_run $BLACK_OUTPUT_PATH $BLACK_REPORT_PATH &
     pytest_run $PYTEST_REPORT_PATH &
     wait
@@ -348,24 +337,9 @@ echo "AUTHOR EMAIL $AUTHOR_EMAIL"
     BLACK_RESULT=$(cat $BLACK_RESULT_FILE)
 
     echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
-    # BLACK_CODE=$(./black_test.sh)
-    # echo "BLACK RESULTS"
-    # echo "$BLACK_CODE"
-    # echo "BLACK RESULTS"
-    # if black --check --diff *.py > $BLACK_OUTPUT_PATH
-    # then
-    #     BLACK_RESULT=$?
-    #     echo "BLACK SUCCEEDED $BLACK_RESULT"
-    # else
-    #     BLACK_RESULT=$?
-    #     echo "BLACK FAILED $BLACK_RESULT"
-    #     pip install pygments
-    #     cat $BLACK_OUTPUT_PATH | pygmentize -l diff -f html -O full,style=solarized-light -o $BLACK_REPORT_PATH
-    # fi
-
     popd
-    echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    pwd
+    # echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    # pwd
     git clone git@github.com:${REPOSITORY_OWNER_REPORT}/${REPOSITORY_NAME_REPORT}.git $REPOSITORY_PATH_REPORT
 
     pushd $REPOSITORY_PATH_REPORT
@@ -440,14 +414,14 @@ then
                 jq_update $REQUEST_PATH '.labels = ["ci-pytest"]
                     '
             fi
-    else
-        TITLE="${COMMIT_HASH::7} failed formatting test.
-        "
-        BODY+="${COMMIT_HASH} failed formatting test.
-        "
-        jq_update $REQUEST_PATH '.labels = ["ci-black"]
-        '
-    fi
+        else
+            TITLE="${COMMIT_HASH::7} failed formatting test.
+            "
+            BODY+="${COMMIT_HASH} failed formatting test.
+            "
+            jq_update $REQUEST_PATH '.labels = ["ci-black"]
+            '
+        fi
     jq_update $REQUEST_PATH --arg title "$TITLE" '.title = $title'
     jq_update $REQUEST_PATH --arg body  "$BODY"  '.body = $body'
     
@@ -455,10 +429,10 @@ then
 
     # https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#create-an-issue
     github_post_request "https://api.github.com/repos/${REPOSITORY_OWNER_CODE}/${REPOSITORY_NAME_CODE}/issues" $REQUEST_PATH $RESPONSE_PATH
-    cat $REQUEST_PATH
-    echo "RESPONSE path $RESPONSE_PATH"
-    cat $RESPONSE_PATH
-    cat $RESPONSE_PATH | jq ".html_url"
+    #cat $REQUEST_PATH
+    #echo "RESPONSE path $RESPONSE_PATH"
+    #cat $RESPONSE_PATH
+    #cat $RESPONSE_PATH | jq ".html_url"
     
     rm $RESPONSE_PATH
     rm -rf $REQUEST_PATH
@@ -470,8 +444,10 @@ else
     git checkout -f $REPOSITORY_BRANCH_DEV
     git fetch --tags
     NAME_FOR_TAG=$(echo "$REPOSITORY_BRANCH_DEV")
-    git tag "$NAME_FOR_TAG-ci-success" $i
+    git tag --force "$NAME_FOR_TAG-ci-success" $i
     echo "TAG"
+
+
     git add .
     git push
     git checkout -f $REPOSITORY_BRANCH_RELEASE
@@ -485,22 +461,79 @@ else
     echo "commiting done"
     git push
     echo "cherrypicking"
-    git cherry-pick $i
+    if git cherry-pick $i > $CHERRY_PICK_OUTPUT
+    then
+        CHERRY_PICK=$?
+        echo "CHERRY_PICK SUCCESS $CHERRY_PICK"
+    else
+        CHERRY_PICK=$?
+        echo "CHERRY_PICK FAILED $CHERRY_PICK"
+    fi
+    echo "cherry pick $CHERRY_PICK"
+
+    if (( ($CHERRY_PICK != 0) ))
+    then
+        echo "++++++++++++++++CHECK USERS++++++++++++++++++"
+        AUTHOR_USERNAME=""
+        # https://docs.github.com/en/rest/search?apiVersion=2022-11-28#search-users
+        RESPONSE_PATH=$(mktemp)
+        github_api_get_request "https://api.github.com/search/users?q=$AUTHOR_EMAIL" $RESPONSE_PATH
+
+        TOTAL_USER_COUNT=$(cat $RESPONSE_PATH | jq ".total_count")
+        echo "USER COUNT: $TOTAL_USER_COUNT"
+        echo "TOTAL_USER_COUNT $TOTAL_USER_COUNT"
+
+        if [[ $TOTAL_USER_COUNT == 1 ]]
+        then
+            USER_JSON=$(cat $RESPONSE_PATH | jq ".items[0]")
+            AUTHOR_USERNAME=$(cat $RESPONSE_PATH | jq --raw-output ".items[0].login")
+            echo "AUTHOR USERNAME $AUTHOR_USERNAME"
+        fi
+
+        REQUEST_PATH=$(mktemp)
+        RESPONSE_PATH=$(mktemp)
+        echo "{}" > $REQUEST_PATH
+        TITLE="FAILED MERGE(CHERRY PICKING)"
+        BODY=""
+
+        BODY+="Automatically generated message
+        "
+        BODY+="FAILED MERGE(CHERRY PICKING) "
+        BODY+="ERROR MESSAGE: "
+        BODY+="$(cat $CHERRY_PICK_OUTPUT)"
+
+        echo "BODY $BODY"
+        if [[ ! -z $AUTHOR_USERNAME ]]
+        then
+                jq_update $REQUEST_PATH --arg username "$AUTHOR_USERNAME"  '.assignees = [$username]'
+        fi
+
+        jq_update $REQUEST_PATH --arg title "$TITLE" '.title = $title'
+        jq_update $REQUEST_PATH --arg body  "$BODY"  '.body = $body'
+        
+        #echo "REQUEST_PATH $REQUEST_PATH"
+
+        # https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#create-an-issue
+        github_post_request "https://api.github.com/repos/${REPOSITORY_OWNER_CODE}/${REPOSITORY_NAME_CODE}/issues" $REQUEST_PATH $RESPONSE_PATH
+        rm $RESPONSE_PATH
+        rm -rf $REQUEST_PATH
+        fi
     echo "cherrypicking done"
     git push
     popd
 fi
 
 #echo "nothing"
-
 pushd $REPOSITORY_PATH_CODE
 git checkout $REPOSITORY_BRANCH_DEV
 echo "TESTED"
 echo "$TESTED_REVISIONS"
 echo "TESTED"
 fi
+TESTED_REVISIONS+=("$i")
 done
 sleep 15
 done
+echo "CLEANING UP"
 rm -rf $CHECKED_REVS
 rm -rf $REPOSITORY_PATH_CODE
