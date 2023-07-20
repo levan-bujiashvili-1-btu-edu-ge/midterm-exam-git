@@ -126,19 +126,19 @@ export CODE_REPO_URL
 export REPORT_REPO_URL
 ####
 
-echo $GITHUB_PERSONAL_ACCESS_TOKEN
-echo "code url: $CODE_REPO_URL"
-echo "dev branch name: $REPOSITORY_BRANCH_DEV"
-echo "release branch name: $REPOSITORY_BRANCH_RELEASE"
-echo "report URL: $REPORT_REPO_URL"
-echo "report branch name: $REPOSITORY_BRANCH_REPORT"
-echo "repo owner code: $REPOSITORY_OWNER_CODE"
+# echo $GITHUB_PERSONAL_ACCESS_TOKEN
+# echo "code url: $CODE_REPO_URL"
+# echo "dev branch name: $REPOSITORY_BRANCH_DEV"
+# echo "release branch name: $REPOSITORY_BRANCH_RELEASE"
+# echo "report URL: $REPORT_REPO_URL"
+# echo "report branch name: $REPOSITORY_BRANCH_REPORT"
+# echo "repo owner code: $REPOSITORY_OWNER_CODE"
 
-echo "personal access token: $GITHUB_PERSONAL_ACCESS_TOKEN"
+# echo "personal access token: $GITHUB_PERSONAL_ACCESS_TOKEN"
 
-echo "REPOSITORY_NAME: $REPOSITORY_NAME_CODE"
+# echo "REPOSITORY_NAME: $REPOSITORY_NAME_CODE"
 
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 REPOSITORY_PATH_CODE=$(mktemp --directory)
 REPOSITORY_PATH_REPORT=$(mktemp --directory)
@@ -147,12 +147,12 @@ CHECKED_REVS=$(mktemp)
 BLACK_OUTPUT_PATH=$(mktemp)
 BLACK_REPORT_PATH=$(mktemp)
 REQUEST_PATH=$(mktemp)
+BLACK_RESULT_FILE=$(mktemp)
+PYTEST_RESULT_FILE=$(mktemp)
 PYTEST_RESULT=0
 BLACK_RESULT=0
 TESTED_REVISIONS=()
-export BLACK_REPORT_PATH
-export BLACK_OUTPUT_PATH
-export PYTEST_REPORT_PATH
+
 
 function github_api_get_request()
 {
@@ -188,6 +188,53 @@ function jq_update()
     cat $IO_PATH | jq "$@" > $TEMP_PATH
     mv $TEMP_PATH $IO_PATH
 }
+function pytest_run()
+    {
+        if pytest --verbose --html=$1 --self-contained-html
+        then
+            PYTEST_RESULT=$?
+            echo "$PYTEST_RESULT" > $PYTEST_RESULT_FILE
+            echo "cat PYTEST_RESULT_FILE"
+            echo "$(cat $PYTEST_RESULT_FILE)"
+            echo "cat PYTEST_RESULT_FILE"
+
+            echo "PYTEST SUCCEEDED $PYTEST_RESULT"
+        else
+            PYTEST_RESULT=$?
+            echo "$PYTEST_RESULT" > $PYTEST_RESULT_FILE
+            echo "PYTEST FAILED $PYTEST_RESULT"
+
+            echo "cat PYTEST_RESULT_FILE"
+            echo "$(cat $PYTEST_RESULT_FILE)"
+            echo "cat PYTEST_RESULT_FILE"
+        fi
+    }
+    function black_run()
+    {
+        if black --check --diff *.py > $1
+        then
+            BLACK_RESULT=$?
+
+            echo "$BLACK_RESULT" > $BLACK_RESULT_FILE
+
+            echo "BLACK SUCCEEDED $BLACK_RESULT"
+            echo "(cat BLACK_RESULT_FILE)"
+            echo "$(cat $BLACK_RESULT_FILE)"
+            echo "cat BLACK_RESULT_FILE"
+        else
+            BLACK_RESULT=$?
+            echo "BLACK FAILED $BLACK_RESULT"
+            echo "$BLACK_RESULT" > $BLACK_RESULT_FILE
+
+            pip install pygments
+            cat $1 | pygmentize -l diff -f html -O full,style=solarized-light -o $2
+
+
+            echo "cat BLACK_RESULT_FILE"
+            echo "$(cat $BLACK_RESULT_FILE)"
+            echo "cat BLACK_RESULT_FILE"
+        fi
+    }
 # echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 # echo "INSTALLING JQ"
 # echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -220,8 +267,10 @@ function jq_update()
 echo "CLONING CODE REPO"
 git clone $CODE_REPO_URL $REPOSITORY_PATH_CODE
 pushd $REPOSITORY_PATH_CODE
+echo "REPOSITORY_PATH_CODE"
+echo "$REPOSITORY_PATH_CODE"
+echo "REPOSITORY_PATH_CODE"
 git switch $REPOSITORY_BRANCH_DEV
-
 COMMIT_HASH=0
 REV_LIST=$(git rev-list --reverse HEAD)
 
@@ -247,14 +296,14 @@ while true
 do
 for i in ${REV_LIST[@]}; do
 TESTED_REVISIONS+=("$i")
-echo "${TESTED_REVISIONS[@]}"
-for i in ${TESTED_REVISIONS[@]}; do
-echo "$i" >> CHECKED_REVS
-done
-echo "CHECKED REVS CAT"
-CHECKED_REVS_CAT=$(cat CHECKED_REVS)
-echo "$CHECKED_REVS_CAT"
-echo "CHECKED REVS CAT"
+#echo "${TESTED_REVISIONS[@]}"
+# for i in ${TESTED_REVISIONS[@]}; do
+# echo "$i" >> CHECKED_REVS
+# done
+#echo "CHECKED REVS CAT"
+#CHECKED_REVS_CAT=$(cat CHECKED_REVS)
+#echo "$CHECKED_REVS_CAT"
+#echo "CHECKED REVS CAT"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "$i"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -264,20 +313,19 @@ COMMIT_HASH=$i
 echo "COMMIT_HASH"
 echo "$COMMIT_HASH"
 
-#if [[ !" ${TESTED_REVISIONS[*]} " =~ " $COMMIT_HASH " ]]; then
+if [[ !" ${TESTED_REVISIONS[*]} " =~ " $COMMIT_HASH " ]]; then
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "~~~~~~~~~~~~~~~~TESTED REVISIONS~~~~~~~~~~~~"
-if ! grep -q "$i" "$CHECKED_REVS" ; then
+#echo "~~~~~~~~~~~~~~~~TESTED REVISIONS~~~~~~~~~~~~"
+# if ! grep -q "$i" "$CHECKED_REVS" ; then
 # for l in ${CHECKED_REVS_CAT[@]};do
 #     echo "$l"
 # done
-echo "whatever"
 
-echo "~~~~~~~~~~TESTED REVISIONS ~~~~~~~~~~~~~~~"
+#echo "~~~~~~~~~~TESTED REVISIONS ~~~~~~~~~~~~~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 echo "COMMIT_HASH $COMMIT_HASH"
-echo "REV_LIST $REV_LIST"
+# echo "REV_LIST $REV_LIST"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
 echo "AUTHOR EMAIL $AUTHOR_EMAIL"
@@ -289,38 +337,17 @@ echo "AUTHOR EMAIL $AUTHOR_EMAIL"
     #     PYTEST_RESULT=$?
     #     echo "PYTEST FAILED $PYTEST_RESULT"
     # fi
-    function pytest_run()
-    {
-        if pytest --verbose --html=$1 --self-contained-html
-        then
-            PYTEST_RESULT=$?
-            echo "PYTEST SUCCEEDED $2"
-        else
-            PYTEST_RESULT=$?
-            echo "PYTEST FAILED $2"
-        fi
-        echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
-    }
-    function black_run()
-    {
-        if black --check --diff *.py > $1
-        then
-            BLACK_RESULT=$?
-            echo "BLACK SUCCEEDED $2"
-        else
-            BLACK_RESULT=$?
-            echo "BLACK FAILED $2"
-            pip install pygments
-            cat $1 | pygmentize -l diff -f html -O full,style=solarized-light -o $3
-
-        fi
-        echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
-    }
-
-    black_run $BLACK_OUTPUT_PATH $BLACK_RESULT $BLACK_REPORT_PATH &
-    pytest_run $PYTEST_REPORT_PATH $PYTEST_RESULT &
+    #
+    echo "MY PWD"
+    pwd
+    echo "MY PWD"
+    black_run $BLACK_OUTPUT_PATH $BLACK_REPORT_PATH &
+    pytest_run $PYTEST_REPORT_PATH &
     wait
+    PYTEST_RESULT=$(cat $PYTEST_RESULT_FILE)
+    BLACK_RESULT=$(cat $BLACK_RESULT_FILE)
 
+    echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
     # BLACK_CODE=$(./black_test.sh)
     # echo "BLACK RESULTS"
     # echo "$BLACK_CODE"
@@ -335,8 +362,6 @@ echo "AUTHOR EMAIL $AUTHOR_EMAIL"
     #     pip install pygments
     #     cat $BLACK_OUTPUT_PATH | pygmentize -l diff -f html -O full,style=solarized-light -o $BLACK_REPORT_PATH
     # fi
-
-    echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
 
     popd
     echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -442,13 +467,26 @@ else
     echo "TAG"
     echo "$i"
     echo "TAG"
+    git checkout -f $REPOSITORY_BRANCH_DEV
     git fetch --tags
     NAME_FOR_TAG=$(echo "$REPOSITORY_BRANCH_DEV")
-    git tag --force "$NAME_FOR_TAG-ci-success" $i
-    git checkout $REPOSITORY_BRANCH_RELEASE
+    git tag "$NAME_FOR_TAG-ci-success" $i
+    echo "TAG"
+    git add .
+    git push
+    git checkout -f $REPOSITORY_BRANCH_RELEASE
     git fetch
+    git pull
+    echo "adding files now"
+    git add .
+    echo "finished adding files now"
+    echo "commiting now"
+    git commit -m "for cherrypick"
+    echo "commiting done"
+    git push
+    echo "cherrypicking"
     git cherry-pick $i
-    git remote show
+    echo "cherrypicking done"
     git push
     popd
 fi
@@ -456,6 +494,7 @@ fi
 #echo "nothing"
 
 pushd $REPOSITORY_PATH_CODE
+git checkout $REPOSITORY_BRANCH_DEV
 echo "TESTED"
 echo "$TESTED_REVISIONS"
 echo "TESTED"
