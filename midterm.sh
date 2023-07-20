@@ -126,19 +126,7 @@ export CODE_REPO_URL
 export REPORT_REPO_URL
 ####
 
-# echo $GITHUB_PERSONAL_ACCESS_TOKEN
-# echo "code url: $CODE_REPO_URL"
-# echo "dev branch name: $REPOSITORY_BRANCH_DEV"
-# echo "release branch name: $REPOSITORY_BRANCH_RELEASE"
-# echo "report URL: $REPORT_REPO_URL"
-# echo "report branch name: $REPOSITORY_BRANCH_REPORT"
-# echo "repo owner code: $REPOSITORY_OWNER_CODE"
 
-# echo "personal access token: $GITHUB_PERSONAL_ACCESS_TOKEN"
-
-# echo "REPOSITORY_NAME: $REPOSITORY_NAME_CODE"
-
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 REPOSITORY_PATH_CODE=$(mktemp --directory)
 REPOSITORY_PATH_REPORT=$(mktemp --directory)
@@ -153,8 +141,6 @@ CHERRY_PICK_OUTPUT=$(mktemp)
 PYTEST_RESULT=0
 BLACK_RESULT=0
 CHERRY_PICK=0
-BISECT_GOOD=0
-BISECT_BAD=0
 TESTED_REVISIONS=()
 
 
@@ -239,34 +225,32 @@ function pytest_run()
             echo "cat BLACK_RESULT_FILE"
         fi
     }
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# echo "INSTALLING JQ"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# ostype=$(echo "$OSTYPE")
-# echo $ostype
-# if [[ "$OSTYPE" == "msys"* ]]; then
-# mkdir -p "/usr/local/bin"
-# curl -L -o /usr/local/bin/jq.exe \
-#              https://github.com/stedolan/jq/releases/latest/download/jq-win64.exe
-# fi
-# if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-# mkdir -p "/usr/local/bin"
-# curl -L -o /usr/local/bin/jq.exe \
-#              https://github.com/stedolan/jq/releases/latest/download/jq-linux64 
-# fi
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# echo "INSTALLING black"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# pip install black
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "INSTALLING JQ"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+if [[ "$OSTYPE" == "msys"* ]]; then
+mkdir -p "/usr/local/bin"
+curl -L -o /usr/local/bin/jq.exe \
+             https://github.com/stedolan/jq/releases/latest/download/jq-win64.exe
+fi
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+mkdir -p "/usr/local/bin"
+curl -L -o /usr/local/bin/jq.exe \
+             https://github.com/stedolan/jq/releases/latest/download/jq-linux64 
+fi
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "INSTALLING black"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+pip install black
 
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# echo "INSTALLING pytest"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# pip install pytest
-# pip install pytest-html
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# echo "INSTALLINGS DONE"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "INSTALLING pytest"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+pip install pytest
+pip install pytest-html
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "INSTALLINGS DONE"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 echo "CLONING CODE REPO"
 git clone $CODE_REPO_URL $REPOSITORY_PATH_CODE
@@ -275,61 +259,18 @@ git switch $REPOSITORY_BRANCH_DEV
 COMMIT_HASH=0
 REV_LIST=$(git rev-list --reverse HEAD)
 
-# min=0
-# max=$(( ${#REV_LIST[@]} -1 ))
-
-# while [[ min -lt max ]]
-# do
-#     # Swap current first and last elements
-#     x="${REV_LIST[$min]}"
-#     REV_LIST[$min]="${REV_LIST[$max]}"
-#     REV_LIST[$max]="$x"
-
-#     # Move closer
-#     (( min++, max-- ))
-# done
-echo "HERE"
-echo "${REV_LIST[@]}"
-echo "HERE"
-
 
 while true
 do
-
 for i in ${REV_LIST[@]}; do
+
 echo "${TESTED_REVISIONS[@]}" > $CHECKED_REVS
-# echo "CHECKED REVS CAT"
-CHECKED_REVS_CAT=$(cat $CHECKED_REVS)
-# echo "$CHECKED_REVS_CAT"
-# echo "CHECKED REVS CAT"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# echo "$i"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 git switch --detach $i
 COMMIT_HASH=$i
-# echo "COMMIT_HASH"
-# echo "$COMMIT_HASH"
-
-#if [[ !" ${TESTED_REVISIONS[*]} " =~ " $COMMIT_HASH " ]]; then
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-# echo "~~~~~~~~~~~~~~~~TESTED REVISIONS~~~~~~~~~~~~"
 if ! grep -q "$COMMIT_HASH" $CHECKED_REVS ; then
-# for l in ${CHECKED_REVS_CAT[@]};do
-#     echo "$l"
-# done
-
-#echo "~~~~~~~~~~TESTED REVISIONS ~~~~~~~~~~~~~~~"
-# echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-# echo "COMMIT_HASH $COMMIT_HASH"
-# echo "REV_LIST $REV_LIST"
-    # echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     AUTHOR_EMAIL=$(git log -n 1 --format="%ae" HEAD)
     # echo "AUTHOR EMAIL $AUTHOR_EMAIL"
-    # echo "MY PWD"
-    # pwd
-    # echo "MY PWD"
     black_run $BLACK_OUTPUT_PATH $BLACK_REPORT_PATH &
     pytest_run $PYTEST_REPORT_PATH &
     wait
@@ -338,8 +279,6 @@ if ! grep -q "$COMMIT_HASH" $CHECKED_REVS ; then
 
     echo "\$PYTEST_RESULT = $PYTEST_RESULT \$BLACK_RESULT=$BLACK_RESULT"
     popd
-    # echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    # pwd
     git clone git@github.com:${REPOSITORY_OWNER_REPORT}/${REPOSITORY_NAME_REPORT}.git $REPOSITORY_PATH_REPORT
 
     pushd $REPOSITORY_PATH_REPORT
@@ -438,14 +377,12 @@ then
     rm -rf $REQUEST_PATH
 else
     pushd $REPOSITORY_PATH_CODE
-    echo "TAG"
-    echo "$i"
-    echo "TAG"
+    echo "TAGGING"
     git checkout -f $REPOSITORY_BRANCH_DEV
     git fetch --tags
     NAME_FOR_TAG=$(echo "$REPOSITORY_BRANCH_DEV")
     git tag --force "$NAME_FOR_TAG-ci-success" $i
-    echo "TAG"
+    echo "TAGGING"
 
 
     git add .
@@ -468,6 +405,7 @@ else
     else
         CHERRY_PICK=$?
         echo "CHERRY_PICK FAILED $CHERRY_PICK"
+        git cherry-pick --abort
     fi
     echo "cherry pick $CHERRY_PICK"
 
@@ -502,7 +440,7 @@ else
         BODY+="ERROR MESSAGE: "
         BODY+="$(cat $CHERRY_PICK_OUTPUT)"
 
-        echo "BODY $BODY"
+        #echo "BODY $BODY"
         if [[ ! -z $AUTHOR_USERNAME ]]
         then
                 jq_update $REQUEST_PATH --arg username "$AUTHOR_USERNAME"  '.assignees = [$username]'
@@ -523,15 +461,17 @@ else
     popd
 fi
 
-#echo "nothing"
 pushd $REPOSITORY_PATH_CODE
 git checkout $REPOSITORY_BRANCH_DEV
-echo "TESTED"
-echo "$TESTED_REVISIONS"
-echo "TESTED"
+# echo "TESTED"
+# echo "$TESTED_REVISIONS"
+# echo "TESTED"
 fi
 TESTED_REVISIONS+=("$i")
 done
+rm -rf $BLACK_RESULT_FILE
+rm -rf $PYTEST_RESULT_FILE
+rm -rf $CHERRY_PICK_OUTPUT
 sleep 15
 done
 echo "CLEANING UP"
